@@ -43,25 +43,25 @@ function writeSpec(folder, spec) {
 
 ['scss', 'sass'].forEach(function (ext) {
 
-    describe.skip(ext + ' spec', function () {
+    describe.skip(ext + ' spec', function (done) {
         var specFolder = path.resolve(testFolder, ext, 'spec');
         var oldSpec;
         var newSpec;
 
         oldSpec = readSpec(specFolder);
-        createSpec(ext);
-        newSpec = readSpec(specFolder);
-
-        Object.keys(oldSpec)
-            .forEach(function (specName) {
-                it(specName + ' should not have been changed', function () {
-                    oldSpec[specName].should.eql(newSpec[specName]);
+        createSpec(ext, function () {
+            newSpec = readSpec(specFolder);
+            Object.keys(oldSpec)
+                .forEach(function (specName) {
+                    it(specName + ' should not have been changed', function () {
+                        oldSpec[specName].should.eql(newSpec[specName]);
+                    });
                 });
+            after(function () {
+                // Write old spec back to the folder so that future tests will also fail
+                writeSpec(specFolder, oldSpec);
+                done();
             });
-
-        after(function () {
-            // Write old spec back to the folder so that future tests will also fail
-            writeSpec(specFolder, oldSpec);
         });
     });
 

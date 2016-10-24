@@ -1,6 +1,6 @@
 'use strict';
 
-var sass = require('node-sass');
+var sass = require('sass.js');
 
 module.exports = {
     'headings($from: 0, $to: 6)': function (from, to) {

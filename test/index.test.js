@@ -22,7 +22,6 @@ describe('sass-loader', function () {
 
     describe('basic', function () {
 
-        testSync('should compile simple sass without errors (sync)', 'language');
         testAsync('should compile simple sass without errors (async)', 'language');
 
     });
@@ -52,25 +51,15 @@ describe('sass-loader', function () {
 
     describe('imports', function () {
 
-        testSync('should resolve imports correctly (sync)', 'imports');
         testAsync('should resolve imports correctly (async)', 'imports');
 
         // Test for issue: https://github.com/jtangelder/sass-loader/issues/32
-        testSync('should pass with multiple imports (sync)', 'multiple-imports');
         testAsync('should pass with multiple imports (async)', 'multiple-imports');
 
         // Test for issue: https://github.com/jtangelder/sass-loader/issues/73
-        testSync('should resolve imports from other language style correctly (sync)', 'import-other-style');
         testAsync('should resolve imports from other language style correctly (async)', 'import-other-style');
 
         // Test for includePath imports
-        testSync('should resolve imports from another directory declared by includePaths correctly (sync)', 'import-include-paths', function (ext) {
-            return {
-                sassLoader: {
-                    includePaths: [path.join(__dirname, ext, 'from-include-path')]
-                }
-            };
-        });
         testAsync('should resolve imports from another directory declared by includePaths correctly (async)', 'import-include-paths', function (ext) {
             return {
                 sassLoader: {
@@ -79,22 +68,13 @@ describe('sass-loader', function () {
             };
         });
 
-        testSync('should not resolve CSS imports (sync)', 'import-css');
         testAsync('should not resolve CSS imports (async)', 'import-css');
 
-        testSync('should compile bootstrap-sass without errors (sync)', 'bootstrap-sass');
         testAsync('should compile bootstrap-sass without errors (async)', 'bootstrap-sass');
     });
 
     describe('custom importers', function () {
 
-        testSync('should use custom importer', 'custom-importer', function () {
-            return {
-                sassLoader: {
-                    importer: customImporter
-                }
-            };
-        });
         testAsync('should use custom importer', 'custom-importer', function () {
             return {
                 sassLoader: {
@@ -107,13 +87,6 @@ describe('sass-loader', function () {
 
     describe('custom functions', function () {
 
-        testSync('should expose custom functions', 'custom-functions', function () {
-            return {
-                sassLoader: {
-                    functions: customFunctions
-                }
-            };
-        });
         testAsync('should expose custom functions', 'custom-functions', function () {
             return {
                 sassLoader: {
@@ -126,13 +99,6 @@ describe('sass-loader', function () {
 
     describe('prepending data', function () {
 
-        testSync('should extend the data-option if present', 'prepending-data', function () {
-            return {
-                sassLoader: {
-                    data: '$prepended-data: hotpink;'
-                }
-            };
-        });
         testAsync('should extend the data-option if present', 'prepending-data', function () {
             return {
                 sassLoader: {
@@ -235,26 +201,6 @@ function testAsync(name, id, config) {
 
                 done();
             });
-        });
-    });
-}
-
-function testSync(name, id, config) {
-    syntaxStyles.forEach(function forEachSyntaxStyle(ext) {
-        it(name + ' (' + ext + ')', function () {
-            var expectedCss = readCss(ext, id);
-            var sassFile = pathToSassFile(ext, id);
-            var webpackConfig = Object.assign(config ? config(ext) : {}, {
-                entry: sassFile
-            });
-            var enhancedReq;
-            var actualCss;
-
-            enhancedReq = enhancedReqFactory(module, webpackConfig);
-            actualCss = enhancedReq(webpackConfig.entry);
-
-            fs.writeFileSync(__dirname + '/output/' + name + '.' + ext + '.sync.css', actualCss, 'utf8');
-            actualCss.should.eql(expectedCss);
         });
     });
 }

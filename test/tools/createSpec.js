@@ -1,6 +1,6 @@
 'use strict';
 
-var sass = require('node-sass');
+var sass = require('sass.js');
 var os = require('os');
 var fs = require('fs');
 var path = require('path');
@@ -10,7 +10,7 @@ var customFunctions = require('./customFunctions.js');
 var testFolder = path.resolve(__dirname, '../');
 var error = 'error';
 
-function createSpec(ext) {
+function createSpec(ext, callback) {
     var basePath = path.join(testFolder, ext);
     var testNodeModules = path.relative(basePath, path.join(testFolder, 'node_modules')) + path.sep;
     var pathToBootstrap = path.relative(basePath, path.resolve(testFolder, '..', 'node_modules', 'bootstrap-sass'));
@@ -40,10 +40,10 @@ function createSpec(ext) {
                     };
                 },
                 functions: customFunctions,
-                includePaths: [
-                    path.join(testFolder, ext, 'another'),
-                    path.join(testFolder, ext, 'from-include-path')
-                ]
+                // includePaths: [
+                //     path.join(testFolder, ext, 'another'),
+                //     path.join(testFolder, ext, 'from-include-path')
+                // ]
             };
 
             if (/prepending-data/.test(fileName)) {
@@ -53,8 +53,10 @@ function createSpec(ext) {
                 sassOptions.file = fileName;
             }
 
-            css = sass.renderSync(sassOptions).css;
-            fs.writeFileSync(path.join(basePath, 'spec', fileWithoutExt + '.css'), css, 'utf8');
+            css = sass.compile(sassOptions.data, sassOptions, function (result) {
+                fs.writeFile(path.join(basePath, 'spec', fileWithoutExt + '.css'), result.text, 'utf8', callback);
+            });
+
         });
 }
 

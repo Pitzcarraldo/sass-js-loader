@@ -1,7 +1,7 @@
 {
-  "name": "sass-loader",
+  "name": "sass-js-loader",
   "version": "4.0.2",
-  "description": "Sass loader for webpack",
+  "description": "Sass.js loader for webpack",
   "main": "index.js",
   "scripts": {
     "create-spec": "node test/tools/runCreateSpec.js",
@@ -16,19 +16,22 @@
   },
   "keywords": [
     "sass",
-    "libsass",
+    "sass.js",
     "webpack",
     "loader"
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/jtangelder/sass-loader.git"
+    "url": "git://github.com/pitzcarraldo/sass-js-loader.git"
   },
   "author": "J. Tangelder",
+  "contributors": [
+    "Minkyu Cho"
+  ],
   "license": "MIT",
   "peerDependencies": {
-    "node-sass": "^3.4.2",
-    "webpack": "^1.12.6 || ^2.1.0-beta"
+    "webpack": "^1.12.6 || ^2.1.0-beta",
+    "sass.js": "^0.9.13"
   },
   "dependencies": {
     "async": "^2.0.1",
@@ -42,8 +45,8 @@
     "file-loader": "^0.9.0",
     "jshint": "^2.9.2",
     "mocha": "^3.0.2",
-    "node-sass": "^3.8.0",
     "raw-loader": "^0.5.1",
+    "sass.js": "^0.9.13",
     "should": "^11.1.0",
     "style-loader": "^0.13.1",
     "webpack": "^1.13.1",

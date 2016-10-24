@@ -1,7 +1,7 @@
 'use strict';
 
 var utils = require('loader-utils');
-var sass = require('node-sass');
+var sass = require('sass.js');
 var path = require('path');
 var os = require('os');
 var fs = require('fs');
@@ -26,7 +26,7 @@ var matchCss = /\.css$/;
 // fs tasks when running the custom importer code.
 // This can be removed as soon as node-sass implements a fix for this.
 var threadPoolSize = process.env.UV_THREADPOOL_SIZE || 4;
-var asyncSassJobQueue = async.queue(sass.render, threadPoolSize - 1);
+var asyncSassJobQueue = async.queue(sass.compile, threadPoolSize - 1);
 
 /**
  * The sass-loader makes node-sass available to webpack modules.
@@ -41,6 +41,10 @@ module.exports = function (content) {
     var resourcePath = this.resourcePath;
     var sassOptions = getLoaderConfig(this);
     var result;
+
+    if(isSync) {
+        throw new Error('Sorry, sass-js loader doesn\'t support sync mode.');
+    }
 
     /**
      * Enhances the sass error with additional information about what actually went wrong.
@@ -84,19 +88,6 @@ module.exports = function (content) {
      * @returns {function}
      */
     function getWebpackImporter() {
-        if (isSync) {
-            return function syncWebpackImporter(url, fileContext) {
-                var dirContext;
-                var request;
-
-                // node-sass returns UNIX-style paths
-                fileContext = path.normalize(fileContext);
-                request = utils.urlToRequest(url, sassOptions.root);
-                dirContext = fileToDirContext(fileContext);
-
-                return resolveSync(dirContext, url, getImportsToResolve(request));
-            };
-        }
         return function asyncWebpackImporter(url, fileContext, done) {
             var dirContext;
             var request;
@@ -108,41 +99,6 @@ module.exports = function (content) {
 
             resolve(dirContext, url, getImportsToResolve(request), done);
         };
-    }
-
-    /**
-     * Tries to resolve the first url of importsToResolve. If that resolve fails, the next url is tried.
-     * If all imports fail, the import is passed to libsass which also take includePaths into account.
-     *
-     * @param {string} dirContext
-     * @param {string} originalImport
-     * @param {Array} importsToResolve
-     * @returns {object}
-     */
-    function resolveSync(dirContext, originalImport, importsToResolve) {
-        var importToResolve = importsToResolve.shift();
-        var resolvedFilename;
-
-        if (!importToResolve) {
-            // No import possibilities left. Let's pass that one back to libsass...
-            return {
-                file: originalImport
-            };
-        }
-
-        try {
-            resolvedFilename = self.resolveSync(dirContext, importToResolve);
-            // Add the resolvedFilename as dependency. Although we're also using stats.includedFiles, this might come
-            // in handy when an error occurs. In this case, we don't get stats.includedFiles from node-sass.
-            addNormalizedDependency(resolvedFilename);
-            // By removing the CSS file extension, we trigger node-sass to include the CSS file instead of just linking it.
-            resolvedFilename = resolvedFilename.replace(matchCss, '');
-            return {
-                file: resolvedFilename
-            };
-        } catch (err) {
-            return resolveSync(dirContext, originalImport, importsToResolve);
-        }
     }
 
     /**
@@ -206,16 +162,18 @@ module.exports = function (content) {
 
     this.cacheable();
 
-    sassOptions.data = sassOptions.data ? (sassOptions.data + os.EOL + content) : content;
+    var text = sassOptions.data ? (sassOptions.data + os.EOL + content) : content;
 
     // Skip empty files, otherwise it will stop webpack, see issue #21
-    if (sassOptions.data.trim() === '') {
-        return isSync ? content : callback(null, content);
+    if (text.trim() === '') {
+        return callback(null, content);
     }
 
+    sassOptions.style = sassOptions.outputStyle;
+
     // opt.outputStyle
-    if (!sassOptions.outputStyle && this.minimize) {
-        sassOptions.outputStyle = 'compressed';
+    if (!sassOptions.style && this.minimize) {
+        sassOptions.style = 'compressed';
     }
 
     // opt.sourceMap
@@ -225,7 +183,7 @@ module.exports = function (content) {
         // deliberately overriding the sourceMap option
         // this value is (currently) ignored by libsass when using the data input instead of file input
         // however, it is still necessary for correct relative paths in result.map.sources.
-        sassOptions.sourceMap = this.options.context + '/sass.map';
+        sassOptions.sourceMapFile = this.options.context + '/sass.map';
         sassOptions.omitSourceMapUrl = true;
 
         // If sourceMapContents option is not set, set it to true otherwise maps will be empty/null
@@ -250,23 +208,12 @@ module.exports = function (content) {
     sassOptions.importer.push(getWebpackImporter());
 
     // `node-sass` uses `includePaths` to resolve `@import` paths. Append the currently processed file.
-    sassOptions.includePaths = sassOptions.includePaths ? [].concat(sassOptions.includePaths) : [];
-    sassOptions.includePaths.push(path.dirname(resourcePath));
+    // sassOptions.includePaths = sassOptions.includePaths ? [].concat(sassOptions.includePaths) : [];
+    // sassOptions.includePaths.push(path.dirname(resourcePath));
+    sass.options(sassOptions);
 
-    // start the actual rendering
-    if (isSync) {
-        try {
-            result = sass.renderSync(sassOptions);
-            addIncludedFilesToWebpack(result.stats.includedFiles);
-            return result.css.toString();
-        } catch (err) {
-            formatSassError(err);
-            err.file && this.dependency(err.file);
-            throw err;
-        }
-    }
-
-    asyncSassJobQueue.push(sassOptions, function onRender(err, result) {
+    asyncSassJobQueue.push(text, function onCompile(result) {
+        var err = result.status;
         if (err) {
             formatSassError(err);
             err.file && self.dependency(err.file);
@@ -275,7 +222,6 @@ module.exports = function (content) {
         }
 
         if (result.map && result.map !== '{}') {
-            result.map = JSON.parse(result.map);
             result.map.file = resourcePath;
             // The first source is 'stdin' according to libsass because we've used the data input
             // Now let's override that value with the correct relative path
@@ -285,8 +231,8 @@ module.exports = function (content) {
             result.map = null;
         }
 
-        addIncludedFilesToWebpack(result.stats.includedFiles);
-        callback(null, result.css.toString(), result.map);
+        // addIncludedFilesToWebpack(result.stats.includedFiles);
+        callback(null, result.text, result.map);
     });
 };
 
@@ -385,7 +331,7 @@ function getImportsToResolve(originalImport) {
  */
 function getLoaderConfig(loaderContext) {
     var query = utils.parseQuery(loaderContext.query);
-    var configKey = query.config || 'sassLoader';
+    var configKey = query.config || 'sassjsLoader';
     var config = loaderContext.options[configKey] || {};
 
     delete query.config;
@@ -411,11 +357,11 @@ function proxyCustomImporters(importer, resourcePath) {
     return [].concat(importer).map(function (importer) {
         return function (url, prev, done) {
             var args = slice.call(arguments);
-            
+
             if (args[1] === 'stdin') {
                 args[1] = resourcePath;
             }
-            
+
             return importer.apply(this, args);
         };
     });
