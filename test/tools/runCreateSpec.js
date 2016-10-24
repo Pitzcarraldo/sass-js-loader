@@ -3,6 +3,6 @@
 var createSpec = require('./createSpec.js');
 
 ['scss', 'sass'].forEach(function (ext) {
-    createSpec(ext, function () {
+    createSpec(ext, function (err, result) {
     });
 });

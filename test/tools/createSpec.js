@@ -39,7 +39,7 @@ function createSpec(ext, callback) {
                         file: url
                     };
                 },
-                functions: customFunctions,
+                // functions: customFunctions,
                 // includePaths: [
                 //     path.join(testFolder, ext, 'another'),
                 //     path.join(testFolder, ext, 'from-include-path')
@@ -47,16 +47,18 @@ function createSpec(ext, callback) {
             };
 
             if (/prepending-data/.test(fileName)) {
-                sassOptions.data = '$prepended-data: hotpink;' + os.EOL + fs.readFileSync(fileName, 'utf8');
+                var text = '$prepended-data: hotpink;' + os.EOL + fs.readFileSync(fileName, 'utf8');
                 sassOptions.indentedSyntax = /\.sass$/.test(fileName);
+                sass.compile(text, sassOptions, function (result) {
+                    console.log(result);
+                    fs.writeFile(path.join(basePath, 'spec', fileWithoutExt + '.css'), result.text, 'utf8', callback);
+                });
             } else {
-                sassOptions.file = fileName;
+                sass.compile(fs.readFileSync(fileName).toString(), sassOptions, function (result) {
+                    console.log(result);
+                    fs.writeFile(path.join(basePath, 'spec', fileWithoutExt + '.css'), result.text, 'utf8', callback);
+                });
             }
-
-            css = sass.compile(sassOptions.data, sassOptions, function (result) {
-                fs.writeFile(path.join(basePath, 'spec', fileWithoutExt + '.css'), result.text, 'utf8', callback);
-            });
-
         });
 }
 
